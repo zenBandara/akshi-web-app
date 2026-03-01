@@ -1,16 +1,97 @@
-# React + Vite
+# Akshi Teacher Dashboard  
+### React + Vite Frontend Application  
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This project is the Teacher Dashboard interface for the Akshi Trust-aware Adaptive Social Robot Platform.  
 
-Currently, two official plugins are available:
+The dashboard provides real-time insights into child learning progress, behaviour analytics, and trust regulation status.  
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+It supports teachers and parents by visualizing learning data collected from the robotic platform.
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Project Overview  
 
-## Expanding the ESLint configuration
+The Teacher Dashboard is built using React and Vite.  
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+It enables teachers to:
+
+- Monitor individual child learning progress  
+- View attention span analytics  
+- Track PLBS behaviour classification  
+- Observe trust regulation status  
+- Review affordance and modality performance  
+- Provide structured feedback  
+- Access crowdsourcing inputs  
+
+The dashboard supports safe and transparent integration of robotic assistance in kindergarten classrooms.
+
+---
+
+## Core Functional Modules  
+
+### 1. Learning Progress Module  
+
+Displays:
+
+- Task completion status  
+- Constructivist stage progression  
+- Mastery level per activity  
+- Personalized learning pattern  
+
+### 2. Behaviour Analytics Module  
+
+Visualizes:
+
+- Attention span score  
+- Blink rate patterns  
+- Eye gaze stability  
+- Emotional classification  
+- PLBS behavioural domains  
+
+### 3. Trust Regulation Monitor  
+
+Shows:
+
+- Estimated child trust level  
+- Over-trust detection  
+- Under-trust detection  
+- Teacher redirection prompts  
+
+### 4. Affordance and Modality Insights  
+
+Displays effectiveness of:
+
+- Visual modality  
+- Auditory modality  
+- Kinesthetic modality  
+- Cognitive affordances  
+- Affective affordances  
+- Physical affordances  
+- Control affordances  
+
+### 5. Crowdsourcing Interface  
+
+Allows:
+
+- Teacher feedback submission  
+- Parent observations  
+- Collaborative refinement suggestions  
+
+---
+
+## Technology Stack  
+
+- React  
+- Vite  
+- JavaScript or TypeScript  
+- REST API integration  
+- Real-time data visualization  
+
+---
+
+## Getting Started  
+
+### 1. Install Dependencies  
+
+```bash
+npm install
