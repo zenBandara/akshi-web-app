@@ -14,6 +14,7 @@ import { auth } from "./firebase";
 import { useNavigate, useLocation } from "react-router-dom";
 import Lesson from "./lesson";
 import Analytics from "./analytics";
+import akshiLogo from "./assets/akshi_logo.png";
 
 const NAVIGATION = [
   {
@@ -77,7 +78,7 @@ export default function Dashboard() {
         title: "Teachers' Dashboard",
         logo: (
           <img
-            src="/src/assets/akshi_logo.png"
+            src={akshiLogo}
             alt="Akshi Logo"
             style={{ height: 40 }}
           />

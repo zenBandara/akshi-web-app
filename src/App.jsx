@@ -16,6 +16,7 @@ import {
 } from "react-router-dom";
 import Dashboard from "./dashboard";
 import { colors } from "@mui/material";
+import akshiLogo from "./assets/akshi_logo.png";
 
 const providers = [{ id: "credentials", name: "Email and password" }];
 
@@ -23,7 +24,7 @@ const BRANDING = {
   title: "Akshi Teachers' Dashboard",
   logo: (
     <img
-      src="/src/assets/akshi_logo.png"
+      src={akshiLogo}
       alt="Akshi Logo"
       style={{ height: 70 }}
     />
