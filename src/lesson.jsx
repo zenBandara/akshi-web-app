@@ -11,22 +11,26 @@ import {
   CardContent,
   CardMedia
 } from "@mui/material";
-import { ref, set } from "firebase/database";
-import { database } from "./firebase";
+
+import {
+  saveAttendance,
+  saveCurrentLesson,
+  saveTeacherLog
+} from "./teacherService";
 
 const lessons = [
   {
-    id: "lesson_01",
+    id: "t_1",
     title: "Alphabet Learning",
     image: "https://via.placeholder.com/300x150?text=Alphabet"
   },
   {
-    id: "lesson_02",
+    id: "t_2",
     title: "Numbers Learning",
     image: "https://via.placeholder.com/300x150?text=Numbers"
   },
   {
-    id: "lesson_03",
+    id: "t_3",
     title: "Color Identification",
     image: "https://via.placeholder.com/300x150?text=Colors"
   }
@@ -52,13 +56,16 @@ export default function Lesson() {
 
     const attendanceString = students.join(",");
 
-    await set(ref(database, `attendance/${today}`), attendanceString);
+    await saveAttendance(today, attendanceString);
+    await saveTeacherLog("Attendance Submitted", attendanceString);
 
     setAttendanceSubmitted(true);
   };
 
   const selectLesson = async (lessonId) => {
-    await set(ref(database, "current_lesson"), lessonId);
+    await saveCurrentLesson(lessonId);
+    await saveTeacherLog("Lesson Selected", lessonId);
+
     setLessonSelected(true);
   };
 

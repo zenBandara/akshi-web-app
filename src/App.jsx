@@ -14,7 +14,7 @@ import {
   Navigate,
   useNavigate,
 } from "react-router-dom";
-import Dashboard from "./Dashboard";
+import Dashboard from "./dashboard";
 import { colors } from "@mui/material";
 
 const providers = [{ id: "credentials", name: "Email and password" }];
