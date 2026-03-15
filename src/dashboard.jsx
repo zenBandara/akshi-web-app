@@ -12,7 +12,7 @@ import { DashboardLayout } from "@toolpad/core/DashboardLayout";
 import { signOut } from "firebase/auth";
 import { auth } from "./firebase";
 import { useNavigate, useLocation } from "react-router-dom";
-import Lesson from "./Lesson";
+import Lesson from "./lesson";
 import Analytics from "./analytics";
 
 const NAVIGATION = [
