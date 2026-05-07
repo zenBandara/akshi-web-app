@@ -8,6 +8,10 @@ import {
   CardMedia,
   Checkbox,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   FormControlLabel,
   Grid,
@@ -19,7 +23,9 @@ import {
 
 import {
   addStudentToList,
+  getAttendanceByDate,
   getStudentList,
+  getTodaySelectedLessonIds,
   saveAttendance,
   saveCurrentLesson,
   saveTeacherLog
@@ -43,6 +49,16 @@ const lessons = [
   }
 ];
 
+const getTodayKey = () => {
+  const date = new Date();
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
 export default function Lesson() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -51,19 +67,54 @@ export default function Lesson() {
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
 
   const [attendanceSubmitted, setAttendanceSubmitted] = useState(false);
-  const [lessonSelected, setLessonSelected] = useState(false);
+  const [submittedAttendanceNames, setSubmittedAttendanceNames] = useState([]);
 
-  const [loadingStudents, setLoadingStudents] = useState(true);
+  const [selectedLessonId, setSelectedLessonId] = useState("");
+  const [selectedLessonIds, setSelectedLessonIds] = useState([]);
+
+  const [pendingLesson, setPendingLesson] = useState(null);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+
+  const [loading, setLoading] = useState(true);
   const [savingStudent, setSavingStudent] = useState(false);
   const [submittingAttendance, setSubmittingAttendance] = useState(false);
+  const [savingLesson, setSavingLesson] = useState(false);
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const today = new Date().toLocaleDateString("en-CA");
+  const today = getTodayKey();
 
   const getStudentFullName = (student) => {
     return `${student.firstName || ""} ${student.lastName || ""}`.trim();
+  };
+
+  const firstNameCounts = useMemo(() => {
+    const counts = {};
+
+    students.forEach((student) => {
+      const key = (student.firstName || "").trim().toLowerCase();
+
+      if (!key) return;
+
+      counts[key] = (counts[key] || 0) + 1;
+    });
+
+    return counts;
+  }, [students]);
+
+  const getAttendanceSaveName = (student) => {
+    const first = (student.firstName || "").trim();
+    const last = (student.lastName || "").trim();
+
+    const firstKey = first.toLowerCase();
+    const isDuplicateFirstName = firstNameCounts[firstKey] > 1;
+
+    if (isDuplicateFirstName) {
+      return `${first} ${last}`.trim();
+    }
+
+    return first;
   };
 
   const attendingStudents = useMemo(() => {
@@ -72,21 +123,48 @@ export default function Lesson() {
     );
   }, [students, selectedStudentIds]);
 
+  const attendancePreviewNames = useMemo(() => {
+    return attendingStudents.map((student) => getAttendanceSaveName(student));
+  }, [attendingStudents, firstNameCounts]);
+
   useEffect(() => {
-    loadStudents();
+    loadInitialData();
   }, []);
 
-  const loadStudents = async () => {
+  const loadInitialData = async () => {
     try {
-      setLoadingStudents(true);
+      setLoading(true);
       setError("");
+      setMessage("");
 
-      const list = await getStudentList();
-      setStudents(list);
+      const studentList = await getStudentList();
+      setStudents(studentList);
+
+      const todayAttendance = await getAttendanceByDate(today);
+
+      if (todayAttendance) {
+        const names = String(todayAttendance)
+          .split(",")
+          .map((name) => name.trim())
+          .filter(Boolean);
+
+        setSubmittedAttendanceNames(names);
+        setAttendanceSubmitted(true);
+        setMessage(
+          "Attendance already marked today. You can select lessons now."
+        );
+      }
+
+      const todaySelectedLessons = await getTodaySelectedLessonIds();
+      setSelectedLessonIds(todaySelectedLessons);
+
+      if (todaySelectedLessons.length > 0) {
+        setSelectedLessonId(todaySelectedLessons[todaySelectedLessons.length - 1]);
+      }
     } catch (err) {
-      setError(err.message || "Failed to load student list.");
+      setError(err.message || "Failed to load data.");
     } finally {
-      setLoadingStudents(false);
+      setLoading(false);
     }
   };
 
@@ -140,25 +218,22 @@ export default function Lesson() {
       setError("");
       setMessage("");
 
-      if (attendingStudents.length === 0) {
+      if (attendancePreviewNames.length === 0) {
         setError("Please tick at least one student before submitting.");
         return;
       }
 
       setSubmittingAttendance(true);
 
-      const attendanceString = attendingStudents
-        .map((student) => getStudentFullName(student))
-        .join(",");
+      const attendanceString = attendancePreviewNames.join(",");
 
       await saveAttendance(today, attendanceString);
 
-      await saveTeacherLog("Attendance Submitted", {
-        date: today,
-        students: attendanceString
-      });
+      await saveTeacherLog("Attendance Submitted", attendanceString);
 
+      setSubmittedAttendanceNames(attendancePreviewNames);
       setAttendanceSubmitted(true);
+      setMessage("Attendance saved successfully. You can select lessons now.");
     } catch (err) {
       setError(err.message || "Failed to submit attendance.");
     } finally {
@@ -166,20 +241,61 @@ export default function Lesson() {
     }
   };
 
-  const selectLesson = async (lessonId) => {
+  const openLessonConfirmDialog = (lesson) => {
+    setError("");
+    setMessage("");
+
+    setPendingLesson(lesson);
+    setConfirmDialogOpen(true);
+  };
+
+  const closeLessonConfirmDialog = () => {
+    setConfirmDialogOpen(false);
+    setPendingLesson(null);
+  };
+
+  const confirmLessonSelection = async () => {
+    if (!pendingLesson) return;
+
     try {
       setError("");
+      setMessage("");
+      setSavingLesson(true);
 
-      await saveCurrentLesson(lessonId);
-      await saveTeacherLog("Lesson Selected", lessonId);
+      await saveCurrentLesson(pendingLesson.id);
 
-      setLessonSelected(true);
+      // Same lesson eka multiple times select kalath log ekak add wenawa
+      await saveTeacherLog("Lesson Selected", pendingLesson.id);
+
+      setSelectedLessonId(pendingLesson.id);
+
+      // Tag display karanna only unique list ekak thiyanawa
+      setSelectedLessonIds((prev) => {
+        if (prev.includes(pendingLesson.id)) {
+          return prev;
+        }
+
+        return [...prev, pendingLesson.id];
+      });
+
+      setMessage(`${pendingLesson.title} selected successfully.`);
+
+      closeLessonConfirmDialog();
     } catch (err) {
       setError(err.message || "Failed to select lesson.");
+    } finally {
+      setSavingLesson(false);
     }
   };
 
-  // ---------------- Attendance Screen ----------------
+  if (loading) {
+    return (
+      <Box sx={{ p: 4 }}>
+        <Typography variant="h5">Loading...</Typography>
+      </Box>
+    );
+  }
+
   if (!attendanceSubmitted) {
     return (
       <Box sx={{ p: 4 }}>
@@ -199,7 +315,7 @@ export default function Lesson() {
           </Alert>
         )}
 
-        <Paper sx={{ p: 3, maxWidth: 800 }}>
+        <Paper sx={{ p: 3, maxWidth: 850 }}>
           <Typography variant="h6" gutterBottom>
             Add Student
           </Typography>
@@ -241,11 +357,9 @@ export default function Lesson() {
             Student List
           </Typography>
 
-          {loadingStudents ? (
-            <Typography variant="body2">Loading students...</Typography>
-          ) : students.length === 0 ? (
+          {students.length === 0 ? (
             <Alert severity="info">
-              No students added yet. Add students using first name and last name.
+              No students added yet. Add students first.
             </Alert>
           ) : (
             <Box>
@@ -275,24 +389,34 @@ export default function Lesson() {
           <Divider sx={{ my: 3 }} />
 
           <Typography variant="h6" gutterBottom>
-            Check Attendance Before Submission
+            Attending Students Before Submit
           </Typography>
 
-          {attendingStudents.length === 0 ? (
+          {attendancePreviewNames.length === 0 ? (
             <Alert severity="info">
               Tick the checkboxes to mark attending students.
             </Alert>
           ) : (
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {attendingStudents.map((student) => (
-                <Chip
-                  key={student.id}
-                  label={getStudentFullName(student)}
-                  color="success"
-                  variant="outlined"
-                />
-              ))}
-            </Stack>
+            <>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {attendancePreviewNames.map((name, index) => (
+                  <Chip
+                    key={`${name}-${index}`}
+                    label={name}
+                    color="success"
+                    variant="outlined"
+                  />
+                ))}
+              </Stack>
+
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mt: 2 }}
+              >
+                Firebase attendance value: {attendancePreviewNames.join(",")}
+              </Typography>
+            </>
           )}
 
           <Button
@@ -301,7 +425,7 @@ export default function Lesson() {
             sx={{ mt: 3 }}
             onClick={submitAttendance}
             disabled={
-              submittingAttendance || attendingStudents.length === 0
+              submittingAttendance || attendancePreviewNames.length === 0
             }
           >
             {submittingAttendance
@@ -313,46 +437,93 @@ export default function Lesson() {
     );
   }
 
-  // ---------------- Lesson Selection Screen ----------------
-  if (!lessonSelected) {
-    return (
-      <Box sx={{ p: 4 }}>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
+  return (
+    <Box sx={{ p: 4 }}>
+      <Typography variant="h4" gutterBottom>
+        Choose Lesson
+      </Typography>
 
-        <Alert severity="success" sx={{ mb: 3 }}>
-          Attendance saved successfully for {today}.
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
         </Alert>
+      )}
 
-        <Paper sx={{ p: 2, mb: 3, maxWidth: 800 }}>
+      {message && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          {message}
+        </Alert>
+      )}
+
+      <Paper sx={{ p: 2, mb: 3, maxWidth: 850 }}>
+        <Typography variant="h6" gutterBottom>
+          Today Attendance
+        </Typography>
+
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          {submittedAttendanceNames.map((name, index) => (
+            <Chip
+              key={`${name}-${index}`}
+              label={name}
+              color="success"
+            />
+          ))}
+        </Stack>
+
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+          Attendance already marked for {today}.
+        </Typography>
+      </Paper>
+
+      {selectedLessonIds.length > 0 && (
+        <Paper sx={{ p: 2, mb: 3, maxWidth: 850 }}>
           <Typography variant="h6" gutterBottom>
-            Submitted Attendance
+            Lessons Selected Today
           </Typography>
 
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            {attendingStudents.map((student) => (
-              <Chip
-                key={student.id}
-                label={getStudentFullName(student)}
-                color="success"
-              />
-            ))}
+            {selectedLessonIds.map((lessonId) => {
+              const lesson = lessons.find((item) => item.id === lessonId);
+
+              return (
+                <Chip
+                  key={lessonId}
+                  label={lesson ? lesson.title : lessonId}
+                  color="primary"
+                  variant="outlined"
+                />
+              );
+            })}
           </Stack>
         </Paper>
+      )}
 
-        <Typography variant="h4" gutterBottom>
-          Choose Lesson
-        </Typography>
+      {selectedLessonId && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          Current lesson: {selectedLessonId}
+        </Alert>
+      )}
 
-        <Grid container spacing={3}>
-          {lessons.map((lesson) => (
+      <Grid container spacing={3}>
+        {lessons.map((lesson) => {
+          const alreadySelected = selectedLessonIds.includes(lesson.id);
+          const isCurrentLesson = selectedLessonId === lesson.id;
+
+          return (
             <Grid item xs={12} sm={6} md={4} key={lesson.id}>
               <Card
-                sx={{ cursor: "pointer" }}
-                onClick={() => selectLesson(lesson.id)}
+                sx={{
+                  cursor: "pointer",
+                  opacity: 1,
+                  border: isCurrentLesson
+                    ? "2px solid #1976d2"
+                    : "1px solid transparent"
+                }}
+                onClick={() => {
+                  if (!savingLesson) {
+                    openLessonConfirmDialog(lesson);
+                  }
+                }}
               >
                 <CardMedia
                   component="img"
@@ -362,28 +533,78 @@ export default function Lesson() {
                 />
 
                 <CardContent>
-                  <Typography variant="h6">
-                    {lesson.title}
-                  </Typography>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    spacing={1}
+                  >
+                    <Typography variant="h6">
+                      {lesson.title}
+                    </Typography>
 
-                  <Typography variant="body2">
+                    {alreadySelected && (
+                      <Chip
+                        label="Already Selected Today"
+                        color="success"
+                        size="small"
+                      />
+                    )}
+                  </Stack>
+
+                  <Typography variant="body2" sx={{ mt: 1 }}>
                     ID: {lesson.id}
                   </Typography>
+
+                  {isCurrentLesson && (
+                    <Chip
+                      label="Current Lesson"
+                      color="primary"
+                      size="small"
+                      sx={{ mt: 1 }}
+                    />
+                  )}
                 </CardContent>
               </Card>
             </Grid>
-          ))}
-        </Grid>
-      </Box>
-    );
-  }
+          );
+        })}
+      </Grid>
 
-  // ---------------- Final Confirmation ----------------
-  return (
-    <Box sx={{ p: 4 }}>
-      <Alert severity="success">
-        Lesson selected successfully. Session is ready to start.
-      </Alert>
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={closeLessonConfirmDialog}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Are you sure?</DialogTitle>
+
+        <DialogContent>
+          <Typography>
+            Do you want to select{" "}
+            <strong>{pendingLesson?.title}</strong> as the lesson now?
+          </Typography>
+
+
+        </DialogContent>
+
+        <DialogActions>
+          <Button
+            onClick={closeLessonConfirmDialog}
+            disabled={savingLesson}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            variant="contained"
+            onClick={confirmLessonSelection}
+            disabled={savingLesson}
+          >
+            {savingLesson ? "Selecting..." : "Yes, Select"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

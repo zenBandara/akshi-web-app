@@ -1,4 +1,4 @@
-import { ref, get, set, push } from "firebase/database";
+import { ref, get, set, push, remove } from "firebase/database";
 import { database } from "./firebase";
 import { auth } from "./firebase";
 
@@ -10,7 +10,10 @@ const emailToKey = (email) => {
 // Ensure teacher record exists
 const ensureTeacherExists = async () => {
   const user = auth.currentUser;
-  if (!user) return null;
+
+  if (!user) {
+    throw new Error("Teacher is not logged in.");
+  }
 
   const emailKey = emailToKey(user.email);
   const teacherRef = ref(database, `teachers/${emailKey}`);
@@ -33,10 +36,6 @@ const ensureTeacherExists = async () => {
 export const addStudentToList = async ({ firstName, lastName }) => {
   const emailKey = await ensureTeacherExists();
 
-  if (!emailKey) {
-    throw new Error("Teacher is not logged in.");
-  }
-
   const cleanFirstName = firstName.trim();
   const cleanLastName = lastName.trim();
 
@@ -50,8 +49,7 @@ export const addStudentToList = async ({ firstName, lastName }) => {
 
   const studentData = {
     firstName: cleanFirstName,
-    lastName: cleanLastName,
-    createdAt: Date.now()
+    lastName: cleanLastName
   };
 
   await set(studentRef, studentData);
@@ -62,13 +60,9 @@ export const addStudentToList = async ({ firstName, lastName }) => {
   };
 };
 
-// Get student list from teachers/{teacherEmail}/student_list
+// Get student list
 export const getStudentList = async () => {
   const emailKey = await ensureTeacherExists();
-
-  if (!emailKey) {
-    return [];
-  }
 
   const snapshot = await get(
     ref(database, `teachers/${emailKey}/student_list`)
@@ -80,12 +74,24 @@ export const getStudentList = async () => {
 
   const data = snapshot.val();
 
+  // Remove old createdAt fields if already saved before
+  await Promise.all(
+    Object.entries(data).map(([id, student]) => {
+      if (student.createdAt !== undefined) {
+        return remove(
+          ref(database, `teachers/${emailKey}/student_list/${id}/createdAt`)
+        );
+      }
+
+      return Promise.resolve();
+    })
+  );
+
   return Object.entries(data)
     .map(([id, student]) => ({
       id,
       firstName: student.firstName || "",
-      lastName: student.lastName || "",
-      createdAt: student.createdAt || 0
+      lastName: student.lastName || ""
     }))
     .sort((a, b) => {
       const nameA = `${a.firstName} ${a.lastName}`.trim();
@@ -95,13 +101,24 @@ export const getStudentList = async () => {
     });
 };
 
+// Get attendance by date
+export const getAttendanceByDate = async (date) => {
+  const emailKey = await ensureTeacherExists();
+
+  const snapshot = await get(
+    ref(database, `teachers/${emailKey}/attendance/${date}`)
+  );
+
+  if (!snapshot.exists()) {
+    return "";
+  }
+
+  return snapshot.val();
+};
+
 // Save attendance
 export const saveAttendance = async (date, students) => {
   const emailKey = await ensureTeacherExists();
-
-  if (!emailKey) {
-    throw new Error("Teacher is not logged in.");
-  }
 
   await set(
     ref(database, `teachers/${emailKey}/attendance/${date}`),
@@ -113,10 +130,6 @@ export const saveAttendance = async (date, students) => {
 export const saveCurrentLesson = async (lessonId) => {
   const emailKey = await ensureTeacherExists();
 
-  if (!emailKey) {
-    throw new Error("Teacher is not logged in.");
-  }
-
   await set(
     ref(database, `teachers/${emailKey}/current_lesson`),
     lessonId
@@ -127,10 +140,6 @@ export const saveCurrentLesson = async (lessonId) => {
 export const saveTeacherLog = async (action, details) => {
   const emailKey = await ensureTeacherExists();
 
-  if (!emailKey) {
-    throw new Error("Teacher is not logged in.");
-  }
-
   await push(
     ref(database, `teachers/${emailKey}/teacher_dash_logs`),
     {
@@ -139,4 +148,43 @@ export const saveTeacherLog = async (action, details) => {
       timestamp: Date.now()
     }
   );
+};
+
+// Get today's selected lesson IDs from teacher_dash_logs
+export const getTodaySelectedLessonIds = async () => {
+  const emailKey = await ensureTeacherExists();
+
+  const snapshot = await get(
+    ref(database, `teachers/${emailKey}/teacher_dash_logs`)
+  );
+
+  if (!snapshot.exists()) {
+    return [];
+  }
+
+  const logs = snapshot.val();
+
+  const today = new Date();
+  const todayYear = today.getFullYear();
+  const todayMonth = today.getMonth();
+  const todayDate = today.getDate();
+
+  const selectedLessonIds = [];
+
+  Object.values(logs).forEach((log) => {
+    if (log.action !== "Lesson Selected") return;
+
+    const logDate = new Date(log.timestamp);
+
+    const isToday =
+      logDate.getFullYear() === todayYear &&
+      logDate.getMonth() === todayMonth &&
+      logDate.getDate() === todayDate;
+
+    if (isToday && log.details) {
+      selectedLessonIds.push(log.details);
+    }
+  });
+
+  return [...new Set(selectedLessonIds)];
 };
