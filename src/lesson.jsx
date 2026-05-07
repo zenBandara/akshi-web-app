@@ -409,13 +409,7 @@ export default function Lesson() {
                 ))}
               </Stack>
 
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mt: 2 }}
-              >
-                Firebase attendance value: {attendancePreviewNames.join(",")}
-              </Typography>
+              
             </>
           )}
 
