@@ -34,18 +34,13 @@ import {
 const lessons = [
   {
     id: "t_1",
-    title: "Alphabet Learning",
+    title: "Counting Activity 1",
     image: "https://via.placeholder.com/300x150?text=Alphabet"
   },
   {
     id: "t_2",
-    title: "Numbers Learning",
+    title: "Counting Activity 2",
     image: "https://via.placeholder.com/300x150?text=Numbers"
-  },
-  {
-    id: "t_3",
-    title: "Color Identification",
-    image: "https://via.placeholder.com/300x150?text=Colors"
   }
 ];
 
