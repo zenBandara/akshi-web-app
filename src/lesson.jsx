@@ -41,6 +41,11 @@ const lessons = [
     id: "t_2",
     title: "Counting Activity 2",
     image: "https://via.placeholder.com/300x150?text=Numbers"
+  },
+  {
+    id: "t_3",
+    title: "Alphabet Activity",
+    image: "https://via.placeholder.com/300x150?text=Numbers"
   }
 ];
 
