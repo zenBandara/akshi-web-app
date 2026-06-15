@@ -43,7 +43,7 @@ const lessons = [
     image: "https://via.placeholder.com/300x150?text=Numbers"
   },
   {
-    id: "t_3",
+    id: "task3",
     title: "Alphabet Activity",
     image: "https://via.placeholder.com/300x150?text=Numbers"
   }
