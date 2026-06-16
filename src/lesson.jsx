@@ -46,6 +46,11 @@ const lessons = [
     id: "task3",
     title: "Alphabet Activity",
     image: "https://via.placeholder.com/300x150?text=Numbers"
+  },
+  {
+    id: "task_4",
+    title: "Counting Sea Animals",
+    image: "https://via.placeholder.com/300x150?text=Numbers"
   }
 ];
 
