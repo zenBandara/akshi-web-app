@@ -51,6 +51,16 @@ const lessons = [
     id: "task_4",
     title: "Counting Sea Animals",
     image: "https://via.placeholder.com/300x150?text=Numbers"
+  },
+  {
+    id: "task5",
+    title: "Counting Sea Animals 2",
+    image: "https://via.placeholder.com/300x150?text=Numbers"
+  },
+  {
+    id: "task6",
+    title: "Counting Farm Animals",
+    image: "https://via.placeholder.com/300x150?text=Numbers"
   }
 ];
 
